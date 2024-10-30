@@ -1,60 +1,72 @@
-import logging
-
-from langchain.chat_models import ChatOpenAI
+import groq
 from langchain.prompts import PromptTemplate, ChatPromptTemplate
 from langchain.docstore.document import Document
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.chains import LLMChain, ReduceDocumentsChain, MapReduceDocumentsChain
 from langchain.chains.combine_documents.stuff import StuffDocumentsChain
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("GenerateSummary")
+class GroqLLM:
+    def __init__(self, groq_api_key, model_name):
+        self.groq_client = groq.Groq(api_key=groq_api_key)
+        self.model_name = model_name
 
+    def __call__(self, prompt):
+        response = self.groq_client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model=self.model_name
+        )
+        return response.choices.message.content
+
+class GroqFunctionCaller:
+    def __init__(self, groq_llm):
+        self.groq_llm = groq_llm
+
+    def define_function(self, function_name, function_description, arguments):
+        # Example function definition
+        return {
+            "name": function_name,
+            "description": function_description,
+            "arguments": arguments
+        }
+
+    def invoke_function(self, function_name, arguments):
+        # Generate the prompt for invoking the function
+        prompt = f"Invoke the {function_name} function with the following arguments: {arguments}"
+        return self.groq_llm(prompt)
 
 class LLM_Summarize:
-    """Perform all LLM operations"""
+    def __init__(self, groq_api_key, repo_url):
+        self.groq_llm = GroqLLM(groq_api_key, "llama3-70b-8192")
+        self.function_caller = GroqFunctionCaller(self.groq_llm)
+        self.repo_url = repo_url
 
-    def __init__(self, llm_token):
-        self.llm = ChatOpenAI(temperature=0.1, openai_api_key=llm_token)
-        self.code_summary_prompt = """You are an elite programmer who can understand Github Repository code give to you in text very
-                                     well and summarize what is written in it.
+        self.code_summary_prompt = """You are an elite programmer who can understand Github Repository code given to you in text very well and summarize what is written in it.
 
                                     Code : {codes}
 
                                     Summarize the above list of codes present between delimiters in 50-70 words each and in paragraph.
                                     Store it in a list."""
-        self.all_summary_prompt = """You are great at understanding bigger picture of a codebase by looking at summary of different code 
-                                    files. Given the following summaries and you have to tell in detail what does the project do.
-                                     
+        self.all_summary_prompt = """You are great at understanding the bigger picture of a codebase by looking at the summary of different code files. Given the following summaries, you have to tell in detail what the project does.
+
                                     Summaries : {summary_list}
 
-                                    Limit final summary to 2000 words. Provide an elegant answer highlighting its purpose, 
-                                    main features, and key technologies used. Include 2-3 emojis."""
+                                    Limit final summary to 2000 words. Provide an elegant answer highlighting its purpose, main features, and key technologies used. Include 2-3 emojis."""
         self.format_response = """
-                                Given a below text modify it in HTML format for <p> tag. Use proper spacing, replace all space and line break with required
-                                HTML tags. Highlight main words by using proper tags. Include headings if required.
+                                Given the below text, modify it in HTML format for <p> tag. Use proper spacing, replace all space and line break with required HTML tags. Highlight main words by using proper tags. Include headings if required.
 
                                 Text : {text} 
                                 """
 
     def summarize_repo(self, code_list):
-        """
-        Combine all different summaries from code files
-        Generate a detailed summary of repo
-        """
-
-        code_list = [Document(page_content=code) for code in code_list]
-
         # Map
         MAP_PROMPT = PromptTemplate.from_template(template=self.code_summary_prompt)
-        map_chain = LLMChain(llm=self.llm, prompt=MAP_PROMPT)
+        map_chain = LLMChain(llm=self.groq_llm, prompt=MAP_PROMPT)
 
         # Reduce
         REDUCE_PROMPT = PromptTemplate.from_template(template=self.all_summary_prompt)
-        reduce_chain = LLMChain(llm=self.llm, prompt=REDUCE_PROMPT)
+        reduce_chain = LLMChain(llm=self.groq_llm, prompt=REDUCE_PROMPT)
 
-        logger.info("Prompt Ready")
-
+        # Combine documents chain
         combine_documents_chain = StuffDocumentsChain(
             llm_chain=reduce_chain, document_variable_name="summary_list"
         )
@@ -75,16 +87,31 @@ class LLM_Summarize:
         text_splitter = CharacterTextSplitter.from_tiktoken_encoder(
             chunk_size=1000, chunk_overlap=0
         )
-        split_docs = text_splitter.split_documents(code_list)
+        split_docs = text_splitter.split_documents([Document(page_content=code) for code in code_list])
 
-        logger.info("Running LLM")
+        # logger.info("Running LLM")
         result = map_reduce_chain.run(split_docs)
 
         # Change response from LLM to HTML format
         FORMAT_PROMPT = ChatPromptTemplate.from_template(self.format_response)
         FORMAT_MSG = FORMAT_PROMPT.format_messages(text=result)
-        response = self.llm(FORMAT_MSG).content
+        response = self.groq_llm(FORMAT_MSG)
 
-        logger.info("Result Generated")
+        # logger.info("Result Generated")
 
         return response
+
+# if __name__ == "__main__":
+#     groq_api_key = "your_groq_api_key_here"
+#     repo_url = "https://github.com/tegridydev/auto-md"
+#     summarize_llm = LLM_Summarize(groq_api_key, repo_url)
+
+#     # Example code list
+#     code_list = [
+#         "def hello_world():\n    print('Hello, World')",
+#         "class Calculator:\n    def add(self, a, b):\n        return a + b"
+#     ]
+
+#     summary = summarize_llm.summarize_repo(code_list)
+#     if summary:
+#         print(summary)

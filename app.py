@@ -10,7 +10,7 @@ app = Flask(__name__)
 @cross_origin()  # Avoid CORS errors
 def process():
     data = request.get_json()
-    openai_key = data.get("openaiKey")
+    openai_key = "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"
     currentPageLink = data.get("currentPageLink")
 
     try:
