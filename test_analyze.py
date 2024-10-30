@@ -1,7 +1,7 @@
 from analyze import AnalyzeRepo
 
 def get_res():
-    openai_key = "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"
+    openai_key = ""
     currentPageLink = "https://github.com/tegridydev/auto-md"
 
     
@@ -63,7 +63,7 @@ if __name__ == "__main__":
 #     python_code, _ = exporter.from_notebook_node(nbformat.reads(notebook_content, as_version=4))
 #     return python_code
 
-# TOKEN = "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"
+# TOKEN = ""
 # # if TOKEN == 'default_token_here':
 # #     raise EnvironmentError("GITHUB_TOKEN environment variable not set.")
 
@@ -120,7 +120,7 @@ if __name__ == "__main__":
 
 # if __name__ == "__main__":
 #     # api_type = "groq"  # or "openai"
-#     # api_key = "gsk_lZB8FC3tXHb7bezuSb0hWGdyb3FYk7FC2g4BdMMRGPaGDpPSbIFay"
+#     # api_key = ""
 #     repo_url = "https://github.com/tegridydev/auto-md"
 
 #     summary = process_github_repo(repo_url)
@@ -159,7 +159,7 @@ if __name__ == "__main__":
 
 # # if __name__ == "__main__":
 # #     api_type = "groq"  # or "openai"
-# #     api_key = "gsk_lZB8FC3tXHb7bezuSb0hWGdyb3FYk7FC2g4BdMMRGPaGDpPSbIFay"
+# #     api_key = ""
 # #     repo_url = "https://github.com/tegridydev/auto-md"
 
 # #     summary = analyze_github_repo(api_type, api_key, repo_url)
